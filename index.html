@@ -83,13 +83,11 @@
 <body>
 
 <div class="wrapper">
-    <!-- State 1: Active Routing -->
     <div id="auto-state">
         <div class="spinner"></div>
-        <div class="text-muted">Redirecting you shortly...</div>
+        <div class="text-muted">Verifying secure upstream tunnel connection...</div>
     </div>
 
-    <!-- State 2: Fallback Activated -->
     <div id="fallback-state">
         <div class="text-muted">
             Please click this button to redirect to <span style="font-family: monospace; background: #f0f0f0; padding: 2px 4px; border-radius: 4px;">https://objectif.serveousercontent.com</span> properly.
@@ -112,17 +110,7 @@
 
     endpointLink.href = TARGET;
 
-    // Direct redirection execution
-    function runPipeline() {
-        try {
-            window.location.replace(TARGET);
-        } catch (err) {
-            console.error("Navigation initialization failed:", err);
-            switchToFallback();
-        }
-    }
-
-    // Explicitly check Cloudflare DoH to grab the raw server IP
+    // Explicitly check Cloudflare DoH to grab the raw server IP if the tunnel is dead
     async function resolveTargetIP() {
         try {
             const response = await fetch(`https://1.1.1.1/dns-query?name=${DOMAIN}&type=A`, {
@@ -131,35 +119,47 @@
             const data = await response.json();
             
             if (data.Answer && data.Answer.length > 0) {
-                const ip = data.Answer[0].data;
-                dnsResolved.innerText = `Cloudflare 1.1.1.1 Resolved IP: ${ip}`;
+                dnsResolved.innerText = `Cloudflare 1.1.1.1 Resolved IP: ${data.Answer[0].data}`;
             } else {
-                dnsResolved.innerText = "Cloudflare 1.1.1.1: Domain has no active active A record.";
+                dnsResolved.innerText = "Cloudflare 1.1.1.1: Domain has no active A record.";
             }
         } catch (err) {
             dnsResolved.innerText = "Cloudflare 1.1.1.1: Secure DoH lookup failed or blocked.";
-            console.error("DoH Fetch Error:", err);
         }
     }
 
     function switchToFallback() {
-        if (autoState.style.display !== 'none') {
-            autoState.style.display = 'none';
-            fallbackState.style.display = 'block';
-            // Only fire the network request over 1.1.1.1 if the auto-redirect actually hangs
-            resolveTargetIP();
+        autoState.style.display = 'none';
+        fallbackState.style.display = 'block';
+        resolveTargetIP();
+    }
+
+    // Dynamic Pre-flight Ping Engine
+    async function evaluatePipeline() {
+        const controller = new AbortController();
+        // Give the proxy network 2.5 seconds max to respond to the handshake
+        const pingTimeout = setTimeout(() => controller.abort(), 2500); 
+
+        try {
+            // HEAD request + no-cors checks server status without triggering security flags
+            await fetch(TARGET, { 
+                method: 'HEAD', 
+                mode: 'no-cors', 
+                signal: controller.signal 
+            });
+            
+            clearTimeout(pingTimeout);
+            // Upstream responded smoothly. Execute immediate programmatic navigation.
+            window.location.replace(TARGET);
+        } catch (err) {
+            clearTimeout(pingTimeout);
+            console.warn("Upstream handshake failed. Mounting user fallback.", err);
+            switchToFallback();
         }
     }
 
-    // Fire immediately
-    runPipeline();
-
-    // Watchdog timer changed strictly to 5000ms (5 seconds)
-    setTimeout(() => {
-        if (!document.hidden) {
-            switchToFallback();
-        }
-    }, 5000);
+    // Kick off the runtime validation
+    evaluatePipeline();
 </script>
 
 </body>
