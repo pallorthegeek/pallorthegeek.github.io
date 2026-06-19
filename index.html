@@ -85,7 +85,7 @@
 <div class="wrapper">
     <div id="auto-state">
         <div class="spinner"></div>
-        <div class="text-muted">Verifying secure upstream tunnel connection...</div>
+        <div class="text-muted">Verifying...</div>
     </div>
 
     <div id="fallback-state">
@@ -94,7 +94,7 @@
         </div>
         <a id="endpoint-link" href="#" class="btn">Redirect to Application</a>
         <div>
-            <div id="dns-resolved" class="dns-info">Cloudflare 1.1.1.1: Resolving target origin...</div>
+            <div id="dns-resolved" class="dns-info">Resolving target origin...</div>
         </div>
     </div>
 </div>
@@ -119,12 +119,12 @@
             const data = await response.json();
             
             if (data.Answer && data.Answer.length > 0) {
-                dnsResolved.innerText = `Cloudflare 1.1.1.1 Resolved IP: ${data.Answer[0].data}`;
+                dnsResolved.innerText = `Resolved IP: ${data.Answer[0].data}`;
             } else {
-                dnsResolved.innerText = "Cloudflare 1.1.1.1: Domain has no active A record.";
+                dnsResolved.innerText = "Error: Domain has no active A record.";
             }
         } catch (err) {
-            dnsResolved.innerText = "Cloudflare 1.1.1.1: Secure DoH lookup failed or blocked.";
+            dnsResolved.innerText = "DoH lookup failed or blocked.";
         }
     }
 
@@ -153,7 +153,7 @@
             window.location.replace(TARGET);
         } catch (err) {
             clearTimeout(pingTimeout);
-            console.warn("Upstream handshake failed. Mounting user fallback.", err);
+            console.warn("Verification failed, mounting user fallback.", err);
             switchToFallback();
         }
     }
