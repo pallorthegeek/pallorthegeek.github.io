@@ -145,6 +145,7 @@
             await fetch(TARGET, { 
                 method: 'HEAD', 
                 mode: 'no-cors', 
+                cache: 'no-store', // Don't store results in cache
                 signal: controller.signal 
             });
             
